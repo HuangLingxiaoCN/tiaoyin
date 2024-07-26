@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 
 import { SettingOutlined } from "@ant-design/icons";
-import { Button, Col, InputNumber, Row, Slider, Space } from "antd";
+import { Button, Col, InputNumber, Row, Slider, Space, Select } from "antd";
 import Dashboard from "./Dashboard";
-// import { startPitchDetect } from "./GetAudioFreq.js";
+
+import { xianData } from "./xianData";
 import "./App.css";
 
 var audioContext = null;
@@ -16,60 +17,23 @@ var rafID = null;
 var buflen = 2048;
 var buf = new Float32Array(buflen);
 
-const xians = [
-  {
-    id: 1,
-    name: "一弦",
-    char: "C",
-    freq: 61.54,
-  },
-  {
-    id: 2,
-    name: "二弦",
-    char: "D",
-    freq: 60.12,
-  },
-  {
-    id: 3,
-    name: "三弦",
-    char: "F",
-    freq: 59.76,
-  },
-  {
-    id: 4,
-    name: "四弦",
-    char: "G",
-    freq: 59.24,
-  },
-  {
-    id: 5,
-    name: "五弦",
-    char: "A",
-    freq: 58.97,
-  },
-  {
-    id: 6,
-    name: "六弦",
-    char: "c",
-    freq: 60.73,
-  },
-  {
-    id: 7,
-    name: "七弦",
-    char: "d",
-    freq: 61.64,
-  },
-];
+
+// 常量
+const ratio = 1.059;
 
 function App() {
-  // 设置标准频率 150,需要改可设置的
-  const stdFreq = 150;
+  //
+  let calculatedFreq = 0;
   const [freq, setFreq] = useState(-1);
   const [freqDif, setFreqDif] = useState(-10);
-  const [inputFreq, setInputFreq] = useState(390);
-
+  const [criteria, setCriteria] = useState(390);
   const [selectedXianId, setSelectedXianId] = useState(1);
+  const [selectedMode, setSelectedMode] = useState("zhengdiao");
 
+  // 计算频率 freq = (ratio**sound)*criteria
+  calculatedFreq = (Math.pow(ratio, xianData[selectedMode][selectedXianId - 1].sound) * criteria).toFixed(2);
+
+  console.log(calculatedFreq)
   const startPitchDetect = () => {
     console.log("startPitchDetect");
 
@@ -169,10 +133,10 @@ function App() {
     var b = (x3 - x1) / 2;
     if (a) T0 = T0 - b / (2 * a);
 
-    console.log(sampleRate / T0);
+    // console.log(sampleRate / T0);
 
     setFreq(sampleRate / T0);
-    setFreqDif(sampleRate / T0 - stdFreq);
+    setFreqDif(sampleRate / T0 - calculatedFreq);
     return sampleRate / T0;
   };
 
@@ -190,28 +154,28 @@ function App() {
 
   // console.log(selectedXianId);
 
-  const onChange = (newValue) => {
-    setInputFreq(newValue);
+  const changeCriteria = (newValue) => {
+    setCriteria(newValue);
+  };
+
+  const changeMode = (value) => {
+    setSelectedMode(value);
   };
 
   return (
     <div>
       <Dashboard freqDif={freqDif} />
-      <div className="xian-char">{xians[selectedXianId - 1].char}</div>
-      {/* <div className="start-btn">
-        <Button onClick={startPitchDetect}>Start</Button>
-      </div> */}
-      {/* <p className="curFreq">当前频率: {freq.toFixed(2)} Hz</p> */}
+      <div className="xian-char">{xianData[selectedMode][selectedXianId - 1].char}</div>
       <div className="tiaoyin-main">
         <div className="descript">
-          正在调{xians[selectedXianId - 1].name},音名:
-          {xians[selectedXianId - 1].char},钢琴键位:
-          {xians[selectedXianId - 1].char},频率:{xians[selectedXianId - 1].freq}
+          正在调{xianData[selectedMode][selectedXianId - 1].name},音名:
+          {xianData[selectedMode][selectedXianId - 1].char},钢琴键位:
+          {xianData[selectedMode][selectedXianId - 1].char},频率:{calculatedFreq}
           HZ
         </div>
         <div className="tiaoyin-main-select">
           <div className="string-icons">
-            {xians.map((xian, index) => (
+            {xianData[selectedMode].map((xian, index) => (
               <div
                 style={{
                   opacity: selectedXianId !== xian.id ? "0" : "1",
@@ -226,14 +190,14 @@ function App() {
             ))}
           </div>
           <div className="string-titles">
-            {xians.map((xian, index) => (
+            {xianData[selectedMode].map((xian, index) => (
               <div className="string-title" key={xian.id}>
                 <span>{xian.name}</span>
               </div>
             ))}
           </div>
           <div className="tiaoyin-container">
-            {xians.map((xian, index) => (
+            {xianData[selectedMode].map((xian, index) => (
               <div
                 className="string"
                 key={xian.id}
@@ -259,7 +223,7 @@ function App() {
               </div>
             ))}
             <div className="start-btn">
-              <Button onClick={startPitchDetect}>Start</Button>
+              <Button onClick={startPitchDetect}>开始调音</Button>
             </div>
           </div>
         </div>
@@ -270,11 +234,47 @@ function App() {
         <Slider
           min={390}
           max={440}
-          onChange={onChange}
-          value={inputFreq}
+          onChange={changeCriteria}
+          value={criteria}
           style={{ width: "200px", marginLeft: "10px" }}
         />
-        <p>{inputFreq}</p>
+        <p>{criteria}</p>
+      </div>
+
+      <div className="switch-mode">
+        <p>切换模式:</p>
+        <Select
+          defaultValue="zhengdiao"
+          style={{
+            width: 120,
+          }}
+          onChange={changeMode}
+          options={[
+            {
+              value: "zhengdiao",
+              label: "正调",
+            },
+            {
+              value: "jin5xian",
+              label: "紧五弦",
+            },
+            {
+              value: "man36xian",
+              label: "慢三六弦",
+            },
+            {
+              value: "man6xian",
+              label: "慢六弦",
+            },
+            {
+              value: "man3xian",
+              label: "慢三弦",
+            },
+          ]}
+        />
+        <Button type="default" custom-style="height: 50rpx;" disabled>
+          节拍器
+        </Button>
       </div>
     </div>
   );
